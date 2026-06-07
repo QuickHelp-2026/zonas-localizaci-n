@@ -1772,7 +1772,7 @@ function handlePhotoUpload(input) {
 // QR & APP LINK
 // ═══════════════════════════════════════════════════════════════════
 function getAppUrl() {
-  return window.location.href.replace(/Geolocalización.*\.html/,'mensajero-app.html').replace(/Geolocalización%20.*\.html/,'mensajero-app.html');
+  try { const u=new URL(window.location.href); const p=u.pathname.split('/'); p[p.length-1]='mensajero-app.html'; u.pathname=p.join('/'); u.search=''; u.hash=''; return u.toString(); } catch(e){ return 'mensajero-app.html'; }
 }
 function showQR() { openModal('qr'); }
 function copyAppLink() { navigator.clipboard.writeText(getAppUrl()).then(()=>showNotif('ok','Enlace copiado','URL de la app mensajero copiada')).catch(()=>showNotif('geo','Error','No se pudo copiar')); }
