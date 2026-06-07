@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080b10">
+<title>HEEL Mensajero GPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+--bg:#080b10;--bg2:#0d1117;--bg3:#111827;
+--card:rgba(255,255,255,.04);--card2:rgba(255,255,255,.07);
+--b:rgba(255,255,255,.08);--b2:rgba(255,255,255,.14);
+--g:#10b981;--gd:rgba(16,185,129,.15);--g3:rgba(16,185,129,.3);
+--r:#ef4444;--rd:rgba(239,68,68,.15);
+--a:#f59e0b;--ad:rgba(245,158,11,.15);
+--bl:#3b82f6;--bld:rgba(59,130,246,.15);
+--t1:#e2e8f0;--t2:#64748b;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',sans-serif;font-size:15px;overflow:hidden;}
+.app{display:flex;flex-direction:column;height:100vh;max-width:430px;margin:0 auto;position:relative;}
+
+/* ── SCREEN SISTEMA ── */
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.screen.active{display:flex;}
+
+/* ── STATUS BAR ── */
+.statusbar{height:env(safe-area-inset-top,0px);background:var(--bg2);flex-shrink:0;}
+
+/* ── HEADER ── */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--b);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--t1);}
+.topbar-sub{font-size:11px;color:var(--t2);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+
+/* ── BOTTOM NAV ── */
+.bottomnav{background:var(--bg2);border-top:1px solid var(--b);display:flex;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));flex-shrink:0;}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;color:var(--t2);transition:color .2s;}
+.bni.active{color:var(--g);}
+.bni svg{width:22px;height:22px;}
+.bni-lbl{font-size:10px;font-weight:600;}
+.bni-badge{background:var(--r);color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 4px;min-width:14px;text-align:center;position:absolute;top:-2px;right:-4px;}
+.bni-ico-wrap{position:relative;}
+
+/* ── SCROLL AREAS ── */
+.scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.scroll::-webkit-scrollbar{width:0;}
+
+/* ── LOGIN / REGISTRO ── */
+.auth-screen{background:var(--bg);display:flex;flex-direction:column;height:100%;}
+.auth-hero{background:linear-gradient(160deg,#080b10 0%,#0d1117 100%);padding:32px 24px 24px;text-align:center;flex-shrink:0;}
+.auth-logo{width:58px;height:58px;background:var(--g);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.auth-logo svg{width:30px;height:30px;fill:#080b10;}
+.auth-title{font-size:22px;font-weight:700;color:var(--t1);margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--t2);}
+.auth-tabs{display:flex;background:rgba(255,255,255,.04);border-radius:12px;padding:4px;margin:20px 16px 0;}
+.auth-tab{flex:1;padding:9px;text-align:center;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:var(--t2);transition:all .2s;}
+.auth-tab.active{background:var(--bg2);color:var(--t1);box-shadow:0 1px 6px rgba(0,0,0,.3);}
+.auth-form{flex:1;overflow-y:auto;padding:20px 16px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;}
+.form-input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--b);border-radius:10px;color:var(--t1);padding:12px 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--g);}
+.form-input.pin{letter-spacing:8px;text-align:center;font-size:20px;font-family:'JetBrains Mono',monospace;}
+.form-hint{font-size:11px;color:var(--t2);margin-top:4px;}
+.btn-primary{width:100%;background:var(--g);color:#080b10;border:none;padding:14px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s;margin-top:6px;}
+.btn-primary:active{opacity:.8;}
+.btn-secondary{width:100%;background:rgba(255,255,255,.05);color:var(--t2);border:1px solid var(--b);padding:12px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;}
+.btn-secondary:active{background:var(--card2);}
+.form-error{background:var(--rd);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--r);margin-top:10px;display:none;}
+.form-error.show{display:block;}
+.terms-check{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;}
+.terms-check input{margin-top:2px;accent-color:var(--g);width:16px;height:16px;flex-shrink:0;}
+.terms-txt{font-size:12px;color:var(--t2);line-height:1.5;}
+
+/* ── HOME SCREEN ── */
+.status-card{background:var(--bg2);border:1px solid var(--b);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden;}
+.status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.status-card.on-duty::before{background:var(--g);}
+.status-card.off-duty::before{background:var(--t2);}
+.status-card.alert::before{background:var(--r);}
+.avatar-big{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin:0 auto 12px;overflow:hidden;flex-shrink:0;}
+.avatar-big img{width:100%;height:100%;object-fit:cover;}
+.messenger-name{font-size:20px;font-weight:700;color:var(--t1);margin-bottom:2px;}
+.messenger-zone{font-size:13px;color:var(--t2);margin-bottom:16px;}
+.shift-status{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.5px;margin-bottom:16px;}
+.shift-status.active{background:var(--gd);border:1px solid var(--g3);color:var(--g);}
+.shift-status.inactive{background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.2);color:var(--t2);}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.shift-btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;}
+.shift-btn.start{background:var(--g);color:#080b10;}
+.shift-btn.end{background:var(--rd);border:1px solid rgba(239,68,68,.3);color:var(--r);}
+.shift-btn:active{transform:scale(.97);}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stat-card{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:14px;text-align:center;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;margin-bottom:3px;}
+.stat-lbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;}
+.stat-card.green .stat-val{color:var(--g);}
+.stat-card.red .stat-val{color:var(--r);}
+.stat-card.amber .stat-val{color:var(--a);}
+.stat-card.blue .stat-val{color:var(--bl);}
+
+/* ── ZONE STATUS BANNER ── */
+.zone-banner{border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;}
+.zone-banner.in-zone{background:var(--gd);border:1px solid var(--g3);}
+.zone-banner.out-zone{background:var(--rd);border:1px solid rgba(239,68,68,.3);}
+.zone-banner.no-gps{background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2);}
+.zone-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.zone-banner.in-zone .zone-icon{background:var(--gd);}
+.zone-banner.out-zone .zone-icon{background:var(--rd);}
+.zone-banner.no-gps .zone-icon{background:rgba(100,116,139,.12);}
+.zone-title{font-size:16px;font-weight:700;margin-bottom:2px;}
+.zone-banner.in-zone .zone-title{color:var(--g);}
+.zone-banner.out-zone .zone-title{color:var(--r);}
+.zone-banner.no-gps .zone-title{color:var(--t2);}
+.zone-sub{font-size:12px;color:var(--t2);}
+
+/* ── GPS INFO ROW ── */
+.info-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b);}
+.info-row:last-child{border-bottom:none;}
+.info-label{font-size:13px;color:var(--t2);}
+.info-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--t1);font-weight:500;}
+
+/* ── BATTERY BAR ── */
+.bat-container{display:flex;align-items:center;gap:8px;}
+.bat-bar-bg{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.bat-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+
+/* ── MAP SCREEN ── */
+#messenger-map{height:100%;z-index:1;}
+.map-overlay{position:absolute;bottom:80px;left:16px;right:16px;z-index:10;}
+.map-status-pill{background:rgba(8,11,16,.92);border:1px solid var(--b);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;backdrop-filter:blur(10px);}
+
+/* ── ALERT LIST ── */
+.alert-item{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;}
+.alert-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.alert-icon.geo{background:var(--rd);}
+.alert-icon.ina{background:var(--ad);}
+.alert-icon.gps{background:var(--bld);}
+.alert-icon.bat{background:var(--ad);}
+.alert-title{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:3px;}
+.alert-body{font-size:12px;color:var(--t2);line-height:1.5;}
+.alert-time{font-size:10px;color:var(--t3);margin-top:4px;}
+.alert-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
+.alert-badge.geo{background:var(--rd);color:var(--r);}
+.alert-badge.ina{background:var(--ad);color:var(--a);}
+.alert-badge.gps{background:var(--bld);color:var(--bl);}
+.alert-badge.bat{background:var(--ad);color:var(--a);}
+
+/* ── SECTION TITLE ── */
+.section-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;}
+
+/* ── CHIP ── */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.chip.green{background:var(--gd);color:var(--g);border:1px solid var(--g3);}
+.chip.red{background:var(--rd);color:var(--r);border:1px solid rgba(239,68,68,.3);}
+.chip.grey{background:rgba(100,116,139,.12);color:var(--t2);border:1px solid rgba(100,116,139,.2);}
+
+/* ── LOADING ── */
+.loading{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:13px;color:var(--t2);}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:90%;}
+.toast{background:rgba(13,17,23,.97);border:1px solid var(--b2);border-radius:12px;padding:12px 18px;font-size:13px;color:var(--t1);text-align:center;animation:toastIn .3s ease;transition:opacity .3s;pointer-events:all;max-width:360px;width:100%;}
+.toast.rm{opacity:0;}
+.toast.green{border-left:3px solid var(--g);}
+.toast.red{border-left:3px solid var(--r);}
+.toast.amber{border-left:3px solid var(--a);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Leaflet dark style */
+.leaflet-popup-content-wrapper{background:rgba(13,17,23,.97)!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:9px!important;color:#e2e8f0!important;}
+.leaflet-popup-tip{background:rgba(13,17,23,.97)!important;}
+.leaflet-tile-container{filter:brightness(.75) saturate(.7);}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading" id="loading-screen">
+  <div style="width:52px;height:52px;background:var(--g);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="#080b10"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+  </div>
+  <div class="loading-spinner"></div>
+  <div class="loading-txt" id="loading-txt">Cargando HEEL Mensajero...</div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<div class="app">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANTALLA: AUTH (Login / Registro) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="screen auth-screen active" id="screen-auth">
+  <div class="auth-hero">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    </div>
+    <div class="auth-title">HEEL Colombia</div>
+    <div class="auth-sub">App de Mensajeros GPS</div>
+  </div>
+
+  <div class="auth-tabs">
+    <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Iniciar sesión</div>
+    <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Registrarme</div>
+  </div>
+
+  <!-- LOGIN FORM -->
+  <div class="auth-form" id="form-login">
+    <div style="margin-bottom:6px;margin-top:4px">
+      <div style="font-size:14px;font-weight:600;color:var(--t2);margin-bottom:2px">¿Cómo ingresar?</div>
+      <div style="font-size:12px;color:var(--t3);line-height:1.5">Usa la cédula y el PIN de 6 dígitos que el administrador te asignó.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Número de cédula</label>
+      <input type="number" class="form-input" id="login-cedula" placeholder="1234567890" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">PIN (6 dígitos)</label>
+      <input type="password" class="form-input pin" id="login-pin" placeholder="• • • • • •" maxlength="6" inputmode="numeric">
+    </div>
+    <button class="btn-primary" onclick="doMessengerLogin()">Ingresar</button>
+    <div class="form-error" id="login-error">PIN o cédula incorrectos. Contacta al administrador.</div>
+    <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;font-size:11px;color:var(--t2);line-height:1.6;text-align:center">
+      🔒 Modo sin conexión: Si no hay Firebase configurado, puedes usar la app en modo local.
+    </div>
+  </div>
+
+  <!-- REGISTER FORM -->
+  <div class="auth-form" id="form-register" style="display:none">
+    <div class="form-group">
+      <label class="form-label">Nombre completo</label>
+      <input type="text" class="form-input" id="reg-nombre" placeholder="Carlos López Martínez" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Número de cédula</label>
+      <input type="number" class="form-input" id="reg-cedula" placeholder="1234567890" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Teléfono</label>
+      <input type="tel" class="form-input" id="reg-phone" placeholder="+57 300 0000000" autocomplete="tel">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Elige tu PIN de 6 dígitos</label>
+      <input type="password" class="form-input pin" id="reg-pin" placeholder="• • • • • •" maxlength="6" inputmode="numeric">
+      <div class="form-hint">Solo dígitos numéricos. No lo compartas con nadie.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirmar PIN</label>
+      <input type="password" class="form-input pin" id="reg-pin2" placeholder="• • • • • •" maxlength="6" inputmode="numeric">
+    </div>
+    <div class="terms-check">
+      <input type="checkbox" id="reg-terms">
+      <div class="terms-txt">Acepto que mis datos de ubicación GPS serán recopilados durante el turno laboral para control operativo de HEEL Colombia. Los datos no se comparten con terceros.</div>
+    </div>
+    <button class="btn-primary" onclick="doRegister()">Crear cuenta</button>
+    <div class="form-error" id="register-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANTALLA PRINCIPAL (Home + Nav) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-main">
+  <div class="statusbar"></div>
+
+  <!-- Topbar dinámico -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="main-topbar-title">Mi Turno</div>
+      <div class="topbar-sub" id="main-topbar-sub" style="font-family:'JetBrains Mono',monospace" id="topbar-clock">--:--</div>
+    </div>
+    <div class="topbar-right">
+      <div class="chip grey" id="sync-chip">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+        <span id="sync-chip-txt">Offline</span>
+      </div>
+      <button onclick="doAppLogout()" style="background:none;border:1px solid var(--b);color:var(--t2);padding:6px 10px;border-radius:8px;font-size:11px;font-family:inherit;cursor:pointer">Salir</button>
+    </div>
+  </div>
+
+  <!-- TAB: HOME -->
+  <div class="screen active" id="tab-home" style="flex:1;overflow:hidden;">
+    <div class="scroll" id="home-scroll">
+      <!-- Status card -->
+      <div class="status-card" id="status-card">
+        <div class="avatar-big" id="home-avatar" style="background:var(--gd)">
+          <span id="home-initials" style="color:var(--g)">?</span>
+        </div>
+        <div class="messenger-name" id="home-name">Cargando...</div>
+        <div class="messenger-zone" id="home-zone">Sin zona asignada</div>
+        <div class="shift-status inactive" id="shift-status-pill">
+          <span class="pulse-dot"></span>
+          <span id="shift-status-txt">Fuera de turno</span>
+        </div>
+        <button class="shift-btn start" id="shift-btn" onclick="toggleShift()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span id="shift-btn-txt">Iniciar turno</span>
+        </button>
+      </div>
+
+      <!-- Zone status banner -->
+      <div class="zone-banner no-gps" id="zone-banner">
+        <div class="zone-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--t2)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        </div>
+        <div>
+          <div class="zone-title" id="zone-banner-title">GPS no activo</div>
+          <div class="zone-sub" id="zone-banner-sub">Inicia el turno para activar el GPS</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="section-title">Estado actual</div>
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-val" id="stat-speed">0</div>
+          <div class="stat-lbl">km/h velocidad</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-val" id="stat-battery">—</div>
+          <div class="stat-lbl">batería</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-val" id="stat-accuracy">—</div>
+          <div class="stat-lbl">precisión GPS (m)</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-val" id="stat-sync">—</div>
+          <div class="stat-lbl">últ. sincronización</div>
+        </div>
+      </div>
+
+      <!-- Info rows -->
+      <div style="background:var(--card);border:1px solid var(--b);border-radius:14px;padding:16px">
+        <div class="section-title" style="margin-bottom:12px">Información GPS</div>
+        <div class="info-row">
+          <span class="info-label">Latitud</span>
+          <span class="info-val" id="info-lat">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Longitud</span>
+          <span class="info-val" id="info-lng">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Altitud</span>
+          <span class="info-val" id="info-alt">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Turno</span>
+          <span class="info-val" id="info-shift">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Duración turno</span>
+          <span class="info-val" id="info-duration">—</span>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+    </div>
+  </div>
+
+  <!-- TAB: MAPA -->
+  <div class="screen" id="tab-map" style="flex:1;overflow:hidden;position:relative;">
+    <div id="messenger-map" style="height:100%;z-index:1;"></div>
+    <div class="map-overlay">
+      <div class="map-status-pill">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--t2);flex-shrink:0" id="map-gps-dot"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600" id="map-status-txt">GPS no activo</div>
+          <div style="font-size:11px;color:var(--t2)" id="map-coords-txt">Inicia el turno para ver tu posición</div>
+        </div>
+        <div class="chip grey" id="map-zone-chip">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: ALERTAS -->
+  <div class="screen" id="tab-alerts" style="flex:1;overflow:hidden;">
+    <div class="scroll">
+      <div class="sh" style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title">Mis alertas</div>
+        <span class="chip grey" id="alert-count-chip">0 alertas</span>
+      </div>
+      <div id="alerts-list">
+        <div style="text-align:center;padding:40px 20px;color:var(--t2)">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style="opacity:.3;margin-bottom:10px"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Sin alertas</div>
+          <div style="font-size:12px">Todo en orden ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottomnav">
+    <div class="bni active" id="bni-home" onclick="switchTab2('home')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <div class="bni-lbl">Inicio</div>
+    </div>
+    <div class="bni" id="bni-map" onclick="switchTab2('map')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+      <div class="bni-lbl">Mi Zona</div>
+    </div>
+    <div class="bni" id="bni-alerts" onclick="switchTab2('alerts')">
+      <div class="bni-ico-wrap">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <div class="bni-badge" id="alert-nav-badge" style="display:none">0</div>
+      </div>
+      <div class="bni-lbl">Alertas</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════
+// ESTADO
+// ═══════════════════════════════════════════════════════════════════
+const App = {
+  messenger: null,    // datos del mensajero logueado
+  db: null,           // firebase database
+  onDuty: false,
+  shiftStart: null,
+  gpsWatchId: null,
+  lastPos: null,
+  lastSyncTs: null,
+  syncInterval: null,
+  myAlerts: [],
+  map: null,
+  myMarker: null,
+  zoneLayer: null,
+  shiftDurationInterval: null,
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// SHA-256
+// ═══════════════════════════════════════════════════════════════════
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function sanitize(str) { return String(str||'').replace(/<[^>]*>/g,'').replace(/['"`;]/g,'').trim().slice(0,500); }
+function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function getInitials(name) { return String(name||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?'; }
+
+// ═══════════════════════════════════════════════════════════════════
+// FIREBASE
+// ═══════════════════════════════════════════════════════════════════
+function initFirebase() {
+  const cfgStr = localStorage.getItem('fb_config');
+  if (!cfgStr) { updateSyncChip(false); return; }
+  try {
+    const cfg = JSON.parse(cfgStr);
+    if (!cfg.apiKey || !cfg.databaseURL) { updateSyncChip(false); return; }
+    try { firebase.app(); } catch(e) {
+      firebase.initializeApp({apiKey:cfg.apiKey, authDomain:cfg.projectId+'.firebaseapp.com', databaseURL:cfg.databaseURL, projectId:cfg.projectId, appId:cfg.appId||''});
+    }
+    App.db = firebase.database();
+    App.db.ref('.info/connected').on('value', snap => updateSyncChip(snap.val()));
+  } catch(e) { console.warn('Firebase init error:', e); updateSyncChip(false); }
+}
+
+function updateSyncChip(connected) {
+  const chip = document.getElementById('sync-chip');
+  const txt = document.getElementById('sync-chip-txt');
+  if (connected) {
+    chip.className = 'chip green'; txt.textContent = 'En línea';
+  } else {
+    chip.className = 'chip grey'; txt.textContent = 'Offline';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH TABS
+// ═══════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('form-login').style.display = tab==='login'?'block':'none';
+  document.getElementById('form-register').style.display = tab==='register'?'block':'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGIN MENSAJERO
+// ═══════════════════════════════════════════════════════════════════
+async function doMessengerLogin() {
+  const cedula = sanitize(document.getElementById('login-cedula').value.trim());
+  const pinRaw = document.getElementById('login-pin').value.trim();
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  if (!cedula || !pinRaw) { errEl.textContent='Ingresa tu cédula y PIN.'; errEl.classList.add('show'); return; }
+  if (!/^\d{6}$/.test(pinRaw)) { errEl.textContent='El PIN debe ser 6 dígitos.'; errEl.classList.add('show'); return; }
+  const pinHash = await sha256(pinRaw);
+  showLoading('Verificando credenciales...');
+  // Intentar autenticación en Firebase primero
+  if (App.db) {
+    try {
+      const snap = await App.db.ref('/messengers').orderByChild('cedula').equalTo(cedula).once('value');
+      const data = snap.val();
+      if (data) {
+        const entries = Object.entries(data);
+        const match = entries.find(([id, m]) => m.pin_hash === pinHash);
+        if (match) {
+          const [id, m] = match;
+          App.messenger = {...m, id};
+          sessionStorage.setItem('messenger_session', JSON.stringify({id, cedula, ts: Date.now()}));
+          hideLoading();
+          enterApp();
+          return;
+        }
+      }
+    } catch(e) { console.warn('Firebase login error:', e); }
+  }
+  // Fallback: localStorage
+  const localUsers = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
+  const localMatch = localUsers.find(u => u.cedula===cedula && u.pin_hash===pinHash);
+  if (localMatch) {
+    App.messenger = localMatch;
+    sessionStorage.setItem('messenger_session', JSON.stringify({id:localMatch.id, cedula, ts:Date.now()}));
+    hideLoading();
+    enterApp();
+    return;
+  }
+  hideLoading();
+  errEl.textContent = 'PIN o cédula incorrectos. Verifica con tu administrador.';
+  errEl.classList.add('show');
+}
+
+async function doRegister() {
+  const nombre = sanitize(document.getElementById('reg-nombre').value.trim());
+  const cedula = sanitize(document.getElementById('reg-cedula').value.trim());
+  const phone = sanitize(document.getElementById('reg-phone').value.trim());
+  const pin = document.getElementById('reg-pin').value.trim();
+  const pin2 = document.getElementById('reg-pin2').value.trim();
+  const terms = document.getElementById('reg-terms').checked;
+  const errEl = document.getElementById('register-error');
+  errEl.classList.remove('show');
+  if (!nombre||!cedula||!pin) { errEl.textContent='Completa todos los campos requeridos.'; errEl.classList.add('show'); return; }
+  if (!/^\d{6}$/.test(pin)) { errEl.textContent='El PIN debe ser exactamente 6 dígitos numéricos.'; errEl.classList.add('show'); return; }
+  if (pin!==pin2) { errEl.textContent='Los PINs no coinciden.'; errEl.classList.add('show'); return; }
+  if (!terms) { errEl.textContent='Debes aceptar los términos de privacidad.'; errEl.classList.add('show'); return; }
+  showLoading('Creando cuenta...');
+  const pin_hash = await sha256(pin);
+  const newUser = {id:'M'+Date.now(), nombre, cedula, phone, pin_hash, shift:'mañana', shift_start:'06:00', shift_end:'14:00', status:'inactive', zone_id:'', color:'#10b981'};
+  // Guardar en Firebase si conectado
+  if (App.db) {
+    try {
+      await App.db.ref('/messengers/'+newUser.id).set({id:newUser.id, nombre, cedula, phone, pin_hash, shift:newUser.shift, shift_start:newUser.shift_start, shift_end:newUser.shift_end, status:'inactive', zone_id:'', color:'#10b981'});
+      showToast('Cuenta creada. El administrador te asignará zona y turno.', 'green');
+    } catch(e) { console.warn('Firebase register error:', e); }
+  }
+  // Guardar localmente
+  const localUsers = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
+  localUsers.push(newUser);
+  localStorage.setItem('heel_local_users', JSON.stringify(localUsers));
+  App.messenger = newUser;
+  sessionStorage.setItem('messenger_session', JSON.stringify({id:newUser.id, cedula, ts:Date.now()}));
+  hideLoading();
+  enterApp();
+}
+
+function doAppLogout() {
+  if (App.onDuty && !confirm('Tienes un turno activo. ¿Cerrar sesión?')) return;
+  if (App.onDuty) endShift();
+  sessionStorage.removeItem('messenger_session');
+  App.messenger = null;
+  document.getElementById('screen-auth').classList.add('active');
+  document.getElementById('screen-main').classList.remove('active');
+  showToast('Sesión cerrada', 'amber');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENTER APP
+// ═══════════════════════════════════════════════════════════════════
+function enterApp() {
+  document.getElementById('screen-auth').classList.remove('active');
+  document.getElementById('screen-main').classList.add('active');
+  renderHomeInfo();
+  initMessengerMap();
+  listenMyAlerts();
+  startClock();
+  showToast('Bienvenido, ' + (App.messenger?.nombre?.split(' ')[0]||''), 'green');
+}
+
+function renderHomeInfo() {
+  const m = App.messenger;
+  if (!m) return;
+  const initials = getInitials(m.nombre);
+  document.getElementById('home-name').textContent = m.nombre;
+  document.getElementById('home-initials').textContent = initials;
+  document.getElementById('home-avatar').style.background = (m.color||'#10b981') + '22';
+  document.getElementById('home-initials').style.color = m.color||'#10b981';
+  // Zona
+  const zoneInfo = m.zone_id ? `Zona: ${m.zone_id}` : 'Sin zona asignada';
+  document.getElementById('home-zone').textContent = zoneInfo;
+  document.getElementById('info-shift').textContent = ({mañana:'Mañana (6:00–14:00)',tarde:'Tarde (14:00–22:00)',completo:'Completo (6:00–22:00)',custom:`${m.shift_start}–${m.shift_end}`}[m.shift]||'—');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TURNO
+// ═══════════════════════════════════════════════════════════════════
+function toggleShift() {
+  if (App.onDuty) {
+    if (confirm('¿Finalizar turno?')) endShift();
+  } else {
+    startShift();
+  }
+}
+
+function startShift() {
+  App.onDuty = true;
+  App.shiftStart = Date.now();
+  localStorage.setItem('heel_shift_active', JSON.stringify({ts:App.shiftStart, id:App.messenger?.id}));
+  // Actualizar UI
+  document.getElementById('shift-status-pill').className = 'shift-status active';
+  document.getElementById('shift-status-txt').textContent = 'En turno';
+  document.getElementById('status-card').className = 'status-card on-duty';
+  document.getElementById('shift-btn').className = 'shift-btn end';
+  document.getElementById('shift-btn-txt').textContent = 'Finalizar turno';
+  document.querySelector('#shift-btn svg').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  // GPS
+  startGPS();
+  // Actualizar Firebase
+  if (App.db && App.messenger) {
+    App.db.ref('/messengers/'+App.messenger.id).update({status:'active', shift_started:App.shiftStart});
+  }
+  // Duración
+  App.shiftDurationInterval = setInterval(updateShiftDuration, 1000);
+  showToast('Turno iniciado — GPS activado', 'green');
+}
+
+function endShift() {
+  App.onDuty = false;
+  stopGPS();
+  clearInterval(App.shiftDurationInterval);
+  localStorage.removeItem('heel_shift_active');
+  // UI
+  document.getElementById('shift-status-pill').className = 'shift-status inactive';
+  document.getElementById('shift-status-txt').textContent = 'Fuera de turno';
+  document.getElementById('status-card').className = 'status-card off-duty';
+  document.getElementById('shift-btn').className = 'shift-btn start';
+  document.getElementById('shift-btn-txt').textContent = 'Iniciar turno';
+  document.querySelector('#shift-btn svg').innerHTML = '<path d="M8 5v14l11-7z"/>';
+  // Firebase
+  if (App.db && App.messenger) {
+    App.db.ref('/messengers/'+App.messenger.id).update({status:'off', last_seen:Date.now()});
+  }
+  // Reset zone banner
+  setZoneBanner('no-gps','GPS no activo','Turno finalizado');
+  document.getElementById('info-duration').textContent = '—';
+  showToast('Turno finalizado', 'amber');
+}
+
+function updateShiftDuration() {
+  if (!App.shiftStart) return;
+  const diff = Math.floor((Date.now()-App.shiftStart)/1000);
+  const h = Math.floor(diff/3600), m2 = Math.floor((diff%3600)/60), s = diff%60;
+  document.getElementById('info-duration').textContent = `${String(h).padStart(2,'0')}:${String(m2).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GPS TRACKING
+// ═══════════════════════════════════════════════════════════════════
+function startGPS() {
+  if (!navigator.geolocation) { showToast('GPS no disponible en este dispositivo', 'red'); return; }
+  App.gpsWatchId = navigator.geolocation.watchPosition(
+    pos => onGPSUpdate(pos),
+    err => onGPSError(err),
+    {enableHighAccuracy:true, maximumAge:10000, timeout:15000}
+  );
+  // Sincronizar cada 30 segundos
+  App.syncInterval = setInterval(syncPosition, 30000);
+}
+
+function stopGPS() {
+  if (App.gpsWatchId != null) { navigator.geolocation.clearWatch(App.gpsWatchId); App.gpsWatchId = null; }
+  clearInterval(App.syncInterval);
+}
+
+function onGPSUpdate(pos) {
+  const {latitude:lat, longitude:lng, speed, accuracy, altitude} = pos.coords;
+  const speedKmh = speed ? Math.round(speed*3.6) : 0;
+  App.lastPos = {lat, lng, speed:speedKmh, accuracy:Math.round(accuracy), altitude:altitude?Math.round(altitude):null, ts:Date.now()};
+  updateGPSUI(App.lastPos);
+  updateMapMarker(lat, lng);
+  checkZoneStatus(lat, lng);
+}
+
+function onGPSError(err) {
+  console.warn('GPS error:', err);
+  showToast('Error GPS: '+err.message, 'red');
+  setZoneBanner('no-gps','Error de GPS',err.message);
+}
+
+function syncPosition() {
+  if (!App.lastPos || !App.onDuty) return;
+  const {lat, lng, speed, accuracy, ts} = App.lastPos;
+  App.lastSyncTs = Date.now();
+  document.getElementById('stat-sync').textContent = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if (App.db && App.messenger) {
+    const update = {last_lat:lat, last_lng:lng, last_speed:speed||0, last_seen:ts, status:'active'};
+    // Batería si disponible
+    if (navigator.getBattery) {
+      navigator.getBattery().then(bat => {
+        update.last_battery = Math.round(bat.level*100);
+        App.db.ref('/messengers/'+App.messenger.id).update(update);
+        document.getElementById('stat-battery').textContent = Math.round(bat.level*100)+'%';
+      }).catch(()=>App.db.ref('/messengers/'+App.messenger.id).update(update));
+    } else {
+      App.db.ref('/messengers/'+App.messenger.id).update(update);
+    }
+    // Historial de tracking
+    App.db.ref('/tracking/'+App.messenger.id+'/'+ts).set({lat, lng, speed:speed||0, accuracy:accuracy||0, ts});
+  }
+}
+
+function updateGPSUI(pos) {
+  document.getElementById('stat-speed').textContent = pos.speed||0;
+  document.getElementById('stat-accuracy').textContent = pos.accuracy||'—';
+  document.getElementById('info-lat').textContent = pos.lat.toFixed(5);
+  document.getElementById('info-lng').textContent = pos.lng.toFixed(5);
+  document.getElementById('info-alt').textContent = pos.altitude!=null ? pos.altitude+'m' : '—';
+  document.getElementById('map-coords-txt').textContent = `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+  document.getElementById('map-gps-dot').style.background = 'var(--g)';
+  document.getElementById('map-status-txt').textContent = 'GPS activo';
+  // Batería si disponible
+  if (navigator.getBattery) {
+    navigator.getBattery().then(bat => {
+      const pct = Math.round(bat.level*100);
+      document.getElementById('stat-battery').textContent = pct+'%';
+    }).catch(()=>{});
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VERIFICACIÓN DE ZONA
+// ═══════════════════════════════════════════════════════════════════
+function checkZoneStatus(lat, lng) {
+  const m = App.messenger;
+  if (!m || !m.zone_id) { setZoneBanner('no-gps','Sin zona asignada','El administrador te asignará una zona'); return; }
+  // Buscar zona en datos locales
+  const zones = getZonesData();
+  const zone = zones.find(z => z.ID === m.zone_id || z.Nombre === m.zone_id);
+  if (!zone) { setZoneBanner('no-gps','Zona no encontrada','Contacta al administrador'); return; }
+  let inside = false;
+  if (zone.coords && zone.coords.length >= 3) {
+    inside = pointInPolygon(lat, lng, zone.coords);
+  } else if (zone.Lat && zone.Lng) {
+    const dist = haversineMeters(lat, lng, zone.Lat, zone.Lng);
+    inside = dist <= (zone.Radio || 500);
+  }
+  if (inside) {
+    setZoneBanner('in-zone','DENTRO DE ZONA',zone.Nombre);
+    document.getElementById('map-zone-chip').className = 'chip green';
+    document.getElementById('map-zone-chip').textContent = '✓ En zona';
+  } else {
+    setZoneBanner('out-zone','FUERA DE ZONA','⚠ Estás fuera de '+zone.Nombre);
+    document.getElementById('map-zone-chip').className = 'chip red';
+    document.getElementById('map-zone-chip').textContent = '✗ Fuera';
+    addMyAlert('geo','Salida de zona','Estás fuera de '+zone.Nombre);
+  }
+}
+
+function getZonesData() {
+  if (typeof HEEL_ZONES !== 'undefined') return HEEL_ZONES;
+  return [];
+}
+
+function setZoneBanner(type, title, sub) {
+  const banner = document.getElementById('zone-banner');
+  banner.className = 'zone-banner ' + type;
+  const colors = {'in-zone':'var(--g)','out-zone':'var(--r)','no-gps':'var(--t2)'};
+  const icons = {
+    'in-zone':'<path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>',
+    'out-zone':'<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>',
+    'no-gps':'<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>',
+  };
+  banner.querySelector('.zone-icon').innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="${colors[type]}">${icons[type]}</svg>`;
+  document.getElementById('zone-banner-title').textContent = title;
+  document.getElementById('zone-banner-sub').textContent = sub;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAPA
+// ═══════════════════════════════════════════════════════════════════
+function initMessengerMap() {
+  if (App.map) return;
+  App.map = L.map('messenger-map', {zoomControl:true, attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(App.map);
+  App.map.setView([4.5,-74.0],6);
+  App.zoneLayer = L.layerGroup().addTo(App.map);
+  // Pintar zona asignada si existe
+  drawAssignedZone();
+}
+
+function drawAssignedZone() {
+  if (!App.zoneLayer || !App.messenger) return;
+  App.zoneLayer.clearLayers();
+  const zones = getZonesData();
+  const zone = zones.find(z => z.ID === App.messenger.zone_id || z.Nombre === App.messenger.zone_id);
+  if (!zone) return;
+  if (zone.coords && zone.coords.length >= 3) {
+    const poly = L.polygon(zone.coords, {color:App.messenger.color||'#10b981', fillColor:App.messenger.color||'#10b981', weight:2, fillOpacity:0.15, opacity:0.8});
+    poly.bindPopup(`<b>${zone.Nombre}</b><br>Tu zona asignada`);
+    App.zoneLayer.addLayer(poly);
+    App.map.fitBounds(poly.getBounds(), {padding:[20,20]});
+  } else if (zone.Lat && zone.Lng) {
+    const circle = L.circle([zone.Lat, zone.Lng], {radius:zone.Radio||500, color:App.messenger.color||'#10b981', fillOpacity:0.15, weight:2});
+    App.zoneLayer.addLayer(circle);
+    App.map.setView([zone.Lat, zone.Lng], 14);
+  }
+}
+
+function updateMapMarker(lat, lng) {
+  if (!App.map) return;
+  const color = App.messenger?.color||'#10b981';
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="position:relative;width:24px;height:24px"><div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:0.35;animation:pulse-ring 1.5s ease-out infinite"></div><div style="position:absolute;inset:4px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9)"></div></div>`,
+    iconSize:[24,24], iconAnchor:[12,12]
+  });
+  if (!App.myMarker) {
+    App.myMarker = L.marker([lat,lng],{icon}).addTo(App.map);
+    App.map.setView([lat,lng],15);
+  } else {
+    App.myMarker.setLatLng([lat,lng]);
+    App.myMarker.setIcon(icon);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ALERTAS
+// ═══════════════════════════════════════════════════════════════════
+function listenMyAlerts() {
+  if (!App.db || !App.messenger) return;
+  App.db.ref('/alerts').orderByChild('messenger_id').equalTo(App.messenger.id).on('value', snap => {
+    const data = snap.val();
+    App.myAlerts = data ? Object.values(data).sort((a,b)=>b.ts-a.ts) : [];
+    renderMyAlerts();
+  });
+}
+
+function addMyAlert(type, title, body) {
+  const alert = {id:'LA'+Date.now(), type, title, body, ts:Date.now(), resolved:false};
+  App.myAlerts.unshift(alert);
+  if (App.myAlerts.length > 50) App.myAlerts = App.myAlerts.slice(0,50);
+  renderMyAlerts();
+  const colors = {geo:'red',ina:'amber',gps:'amber',bat:'amber'};
+  showToast(title+': '+body, colors[type]||'amber');
+}
+
+function renderMyAlerts() {
+  const el = document.getElementById('alerts-list');
+  const badge = document.getElementById('alert-nav-badge');
+  const countChip = document.getElementById('alert-count-chip');
+  const unresolved = App.myAlerts.filter(a=>!a.resolved).length;
+  countChip.textContent = App.myAlerts.length + ' alerta' + (App.myAlerts.length!==1?'s':'');
+  if (unresolved > 0) { badge.style.display='block'; badge.textContent=unresolved; }
+  else badge.style.display='none';
+  if (!App.myAlerts.length) {
+    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--t2)"><svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style="opacity:.3;margin-bottom:10px"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg><div style="font-size:14px;font-weight:600;margin-bottom:4px">Sin alertas</div><div style="font-size:12px">Todo en orden ✓</div></div>';
+    return;
+  }
+  const typeMap = {geo:{cls:'geo',lbl:'Zona'},ina:{cls:'ina',lbl:'Inactividad'},gps:{cls:'gps',lbl:'GPS'},bat:{cls:'bat',lbl:'Batería'}};
+  el.innerHTML = App.myAlerts.slice(0,20).map(a => {
+    const t = typeMap[a.type]||{cls:'geo',lbl:a.type||'Alerta'};
+    const icons = {
+      geo:'<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>',
+      ina:'<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>',
+      gps:'<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>',
+      bat:'<path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/>',
+    };
+    return `<div class="alert-item"><div class="alert-icon ${t.cls}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${t.cls==='geo'?'var(--r)':t.cls==='gps'?'var(--bl)':'var(--a)'}">${icons[a.type]||icons.geo}</svg></div><div style="flex:1"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div class="alert-title">${escHtml(a.title||a.extra||'Alerta')}</div><span class="alert-badge ${t.cls}">${t.lbl}</span></div><div class="alert-body">${escHtml(a.body||a.extra||a.zone_name||'')}</div><div class="alert-time">${new Date(a.ts).toLocaleString('es-CO',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}</div></div></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVEGACIÓN TABS MAIN
+// ═══════════════════════════════════════════════════════════════════
+const mainTabs = ['home','map','alerts'];
+function switchTab2(tab) {
+  mainTabs.forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('bni-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab==='home') document.getElementById('main-topbar-title').textContent='Mi Turno';
+  if (tab==='map') { document.getElementById('main-topbar-title').textContent='Mi Zona'; setTimeout(()=>App.map?.invalidateSize(),100); }
+  if (tab==='alerts') document.getElementById('main-topbar-title').textContent='Alertas';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GEOMETRÍA
+// ═══════════════════════════════════════════════════════════════════
+function pointInPolygon(lat, lng, polygon) {
+  let inside=false, n=polygon.length, j=n-1;
+  for (let i=0;i<n;i++) {
+    const xi=polygon[i][1],yi=polygon[i][0],xj=polygon[j][1],yj=polygon[j][0];
+    if (((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+    j=i;
+  }
+  return inside;
+}
+function haversineMeters(lat1,lng1,lat2,lng2) {
+  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RELOJ
+// ═══════════════════════════════════════════════════════════════════
+function startClock() {
+  function updateClock() { document.getElementById('main-topbar-sub').textContent = new Date().toLocaleTimeString('es-CO'); }
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TOASTS / LOADING
+// ═══════════════════════════════════════════════════════════════════
+function showToast(msg, type='green') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast '+type;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(()=>{ toast.classList.add('rm'); setTimeout(()=>toast.remove(),300); }, 3500);
+}
+function showLoading(txt) { document.getElementById('loading-screen').style.display='flex'; document.getElementById('loading-txt').textContent=txt||'Cargando...'; }
+function hideLoading() { document.getElementById('loading-screen').style.display='none'; }
+
+// ═══════════════════════════════════════════════════════════════════
+// STYLE INJECTION para pulse-ring en mensajero-map
+// ═══════════════════════════════════════════════════════════════════
+const styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes pulse-ring{0%{transform:scale(1);opacity:.9}100%{transform:scale(2.8);opacity:0}}';
+document.head.appendChild(styleEl);
+
+// ═══════════════════════════════════════════════════════════════════
+// INICIO
+// ═══════════════════════════════════════════════════════════════════
+async function init() {
+  showLoading('Iniciando HEEL Mensajero...');
+  initFirebase();
+  // Verificar sesión activa
+  const sess = sessionStorage.getItem('messenger_session');
+  if (sess) {
+    try {
+      const s = JSON.parse(sess);
+      if (Date.now() - s.ts < 12*60*60*1000) { // 12h
+        // Restaurar datos del mensajero desde Firebase o local
+        if (App.db) {
+          try {
+            const snap = await App.db.ref('/messengers/'+s.id).once('value');
+            if (snap.val()) { App.messenger = {...snap.val(), id:s.id}; }
+          } catch(e) {}
+        }
+        if (!App.messenger) {
+          const localUsers = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
+          App.messenger = localUsers.find(u=>u.id===s.id);
+        }
+        if (App.messenger) {
+          // Verificar turno activo guardado
+          const activeShift = localStorage.getItem('heel_shift_active');
+          if (activeShift) {
+            const shiftData = JSON.parse(activeShift);
+            if (shiftData.id===App.messenger.id && (Date.now()-shiftData.ts < 16*60*60*1000)) {
+              App.shiftStart = shiftData.ts;
+              App.onDuty = true;
+            }
+          }
+          hideLoading();
+          enterApp();
+          if (App.onDuty) {
+            // Re-activar GPS
+            startGPS();
+            document.getElementById('shift-status-pill').className='shift-status active';
+            document.getElementById('shift-status-txt').textContent='En turno';
+            document.getElementById('status-card').className='status-card on-duty';
+            document.getElementById('shift-btn').className='shift-btn end';
+            document.getElementById('shift-btn-txt').textContent='Finalizar turno';
+            document.querySelector('#shift-btn svg').innerHTML='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+            App.shiftDurationInterval = setInterval(updateShiftDuration, 1000);
+          }
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+  hideLoading();
+  // Mostrar pantalla de login
+  document.getElementById('screen-auth').classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>
