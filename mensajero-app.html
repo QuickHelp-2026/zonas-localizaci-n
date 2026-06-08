@@ -24,7 +24,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',sans-serif;font-size:15px;overflow:hidden;}
-.app{display:flex;flex-direction:column;height:100vh;max-width:430px;margin:0 auto;position:relative;}
+.app{display:flex;flex-direction:column;height:100vh;max-width:430px;margin:0 auto;position:relative;overflow:hidden;}
 
 /* ── SCREEN SISTEMA ── */
 .screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
@@ -53,7 +53,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 .scroll::-webkit-scrollbar{width:0;}
 
 /* ── LOGIN / REGISTRO ── */
-.auth-screen{background:var(--bg);display:flex;flex-direction:column;height:100%;}
+.auth-screen{background:var(--bg);flex-direction:column;height:100%;}
 .auth-hero{background:linear-gradient(160deg,#080b10 0%,#0d1117 100%);padding:32px 24px 24px;text-align:center;flex-shrink:0;}
 .auth-logo{width:58px;height:58px;background:var(--g);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
 .auth-logo svg{width:30px;height:30px;fill:#080b10;}
@@ -515,21 +515,17 @@ async function doMessengerLogin() {
   // Intentar autenticación en Firebase primero
   if (App.db) {
     try {
-      const snap = await App.db.ref('/messengers').orderByChild('cedula').equalTo(cedula).once('value');
-      const data = snap.val();
-      if (data) {
-        const entries = Object.entries(data);
-        const match = entries.find(([id, m]) => m.pin_hash === pinHash);
-        if (match) {
-          const [id, m] = match;
-          App.messenger = {...m, id};
-          sessionStorage.setItem('messenger_session', JSON.stringify({id, cedula, ts: Date.now()}));
-          hideLoading();
-          enterApp();
-          return;
-        }
+      const snap = await App.db.ref('/messengers').once('value');
+      const all = snap.val() || {};
+      const entries = Object.entries(all);
+      const match = entries.find(([id, m]) => m.cedula === cedula && m.pin_hash === pinHash);
+      if (match) {
+        const [id, m] = match;
+        App.messenger = {...m, id};
+        sessionStorage.setItem('messenger_session', JSON.stringify({id, cedula, ts: Date.now()}));
+        hideLoading(); enterApp(); return;
       }
-    } catch(e) { console.warn('Firebase login error:', e); }
+    } catch(e) { console.warn('Firebase login:', e); }
   }
   // Fallback: localStorage
   const localUsers = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
@@ -682,14 +678,28 @@ function updateShiftDuration() {
 // GPS TRACKING
 // ═══════════════════════════════════════════════════════════════════
 function startGPS() {
-  if (!navigator.geolocation) { showToast('GPS no disponible en este dispositivo', 'red'); return; }
-  App.gpsWatchId = navigator.geolocation.watchPosition(
-    pos => onGPSUpdate(pos),
-    err => onGPSError(err),
-    {enableHighAccuracy:true, maximumAge:10000, timeout:15000}
+  if (!navigator.geolocation) { showToast('GPS no disponible en este dispositivo','red'); return; }
+  showToast('Solicitando permiso GPS...','green');
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      onGPSUpdate(pos);
+      App.gpsWatchId = navigator.geolocation.watchPosition(
+        function(p){ onGPSUpdate(p); },
+        function(e){ onGPSError(e); },
+        {enableHighAccuracy:true, maximumAge:5000, timeout:20000}
+      );
+      App.syncInterval = setInterval(syncPosition, 30000);
+      showToast('GPS activado correctamente','green');
+    },
+    function(err) {
+      var msg = err.code===1 ? 'Permiso GPS denegado. Activa la ubicacion en ajustes del navegador.'
+               : err.code===2 ? 'GPS sin senal. Muevete a un lugar descubierto.'
+               : 'GPS: tiempo agotado. Intenta de nuevo.';
+      showToast(msg,'red');
+      onGPSError(err);
+    },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
   );
-  // Sincronizar cada 30 segundos
-  App.syncInterval = setInterval(syncPosition, 30000);
 }
 
 function stopGPS() {
@@ -853,7 +863,7 @@ function updateMapMarker(lat, lng) {
 // ═══════════════════════════════════════════════════════════════════
 function listenMyAlerts() {
   if (!App.db || !App.messenger) return;
-  App.db.ref('/alerts').orderByChild('messenger_id').equalTo(App.messenger.id).on('value', snap => {
+  App.db.ref('/alerts').on('value', snap => { // filter client-side
     const data = snap.val();
     App.myAlerts = data ? Object.values(data).sort((a,b)=>b.ts-a.ts) : [];
     renderMyAlerts();
