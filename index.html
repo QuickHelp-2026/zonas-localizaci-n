@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1015,18 +1015,27 @@ function listenMessengersFirebase() {
     const data = snap.val();
     if (!data) return;
     Object.entries(data).forEach(([id, m]) => {
-      const idx = S.messengers.findIndex(x => x.id === id);
-      if (idx >= 0) {
-        Object.assign(S.messengers[idx], {
-          last_lat: m.last_lat, last_lng: m.last_lng,
-          last_speed: m.last_speed, last_battery: m.last_battery,
-          last_seen: m.last_seen, status: m.status || S.messengers[idx].status,
+      let idx = S.messengers.findIndex(x => x.id === id);
+      if (idx < 0) {
+        // Messenger exists in Firebase but not locally — add them
+        S.messengers.push({
+          id, nombre: m.nombre||'Mensajero', cedula: m.cedula||'',
+          phone: m.phone||'', shift: m.shift||'mañana', zone_id: m.zone_id||'',
+          status: m.status||'inactive', color: m.color||'#10b981',
+          last_lat: null, last_lng: null, last_speed: null, last_seen: null, last_battery: null,
         });
-        if (m.last_lat && m.last_lng) {
-          if (!S.posHistory[id]) S.posHistory[id] = [];
-          S.posHistory[id].push({lat:m.last_lat, lng:m.last_lng, ts:m.last_seen||Date.now()});
-          if (S.posHistory[id].length > 100) S.posHistory[id].shift();
-        }
+        idx = S.messengers.length - 1;
+        saveData();
+      }
+      Object.assign(S.messengers[idx], {
+        last_lat: m.last_lat, last_lng: m.last_lng,
+        last_speed: m.last_speed, last_battery: m.last_battery,
+        last_seen: m.last_seen, status: m.status || S.messengers[idx].status,
+      });
+      if (m.last_lat && m.last_lng) {
+        if (!S.posHistory[id]) S.posHistory[id] = [];
+        S.posHistory[id].push({lat:m.last_lat, lng:m.last_lng, ts:m.last_seen||Date.now()});
+        if (S.posHistory[id].length > 100) S.posHistory[id].shift();
       }
     });
     renderAll();
@@ -1748,12 +1757,16 @@ function genReport() {
 // ═══════════════════════════════════════════════════════════════════
 function openModal(name) {
   if (name==='messenger') {
-    document.getElementById('m-edit-id').value='';
-    document.getElementById('modal-m-title').textContent='Agregar Mensajero';
-    ['m-nombre','m-cedula','m-phone','m-pin','m-photo-data'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('photo-prev').innerHTML='<span id="photo-initials">?</span>';
-    document.getElementById('m-shift').value='mañana';
-    document.getElementById('m-status').value='inactive';
+    // Only clear fields when creating NEW messenger (not when editing)
+    const isEditing = !!document.getElementById('m-edit-id').value;
+    if (!isEditing) {
+      document.getElementById('m-edit-id').value='';
+      document.getElementById('modal-m-title').textContent='Agregar Mensajero';
+      ['m-nombre','m-cedula','m-phone','m-pin','m-photo-data'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('photo-prev').innerHTML='<span id="photo-initials">?</span>';
+      document.getElementById('m-shift').value='mañana';
+      document.getElementById('m-status').value='inactive';
+    }
     updateShiftFields(); populateZoneSelect();
   }
   if (name==='zone') {
