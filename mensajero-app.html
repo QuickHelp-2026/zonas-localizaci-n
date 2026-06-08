@@ -28,10 +28,11 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 
 /* ── SCREEN SISTEMA ── */
 .screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.screen#screen-main{overflow:visible;}
 .screen.active{display:flex;}
 
 /* ── TAB PANELS (inside screen-main) ── */
-.tab-panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tab-panel{display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;}
 .tab-panel.active{display:flex;}
 
 /* ── STATUS BAR ── */
@@ -84,8 +85,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 .terms-txt{font-size:12px;color:var(--t2);line-height:1.5;}
 
 /* ── HOME SCREEN ── */
-.status-card{background:var(--bg2);border:1px solid var(--b);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden;}
-.status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.status-card{background:var(--bg2);border:1px solid var(--b);border-radius:16px;padding:20px;text-align:center;position:relative;}
+.status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;}
 .status-card.on-duty::before{background:var(--g);}
 .status-card.off-duty::before{background:var(--t2);}
 .status-card.alert::before{background:var(--r);}
@@ -102,6 +103,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 .shift-btn.start{background:var(--g);color:#080b10;}
 .shift-btn.end{background:var(--rd);border:1px solid rgba(239,68,68,.3);color:var(--r);}
 .shift-btn:active{transform:scale(.97);}
+.shift-btn.start{animation:pulse-green 2s infinite;}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{box-shadow:0 0 0 8px rgba(16,185,129,0)}}
 
 /* ── STATS GRID ── */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -299,7 +302,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 
   <!-- TAB: HOME -->
   <div class="tab-panel active" id="tab-home" style="flex:1;overflow:hidden;">
-    <div class="scroll" id="home-scroll">
+    <div class="scroll" id="home-scroll" style="flex:1;overflow-y:auto;">
       <!-- Status card -->
       <div class="status-card" id="status-card">
         <div class="avatar-big" id="home-avatar" style="background:var(--gd)">
@@ -318,7 +321,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
       </div>
 
       <!-- Zone status banner -->
-      <div class="zone-banner no-gps" id="zone-banner">
+      <div class="zone-banner no-gps" id="zone-banner" onclick="if(!App.onDuty)startShift()" style="cursor:pointer">
         <div class="zone-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--t2)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
         </div>
@@ -621,7 +624,7 @@ function renderHomeInfo() {
 // ═══════════════════════════════════════════════════════════════════
 function toggleShift() {
   if (App.onDuty) {
-    if (confirm('¿Finalizar turno?')) endShift();
+    if (confirm('¿Finalizar turno? Se detendrá el GPS.')) endShift();
   } else {
     startShift();
   }
