@@ -30,6 +30,10 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
 .screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
 .screen.active{display:flex;}
 
+/* ── TAB PANELS (inside screen-main) ── */
+.tab-panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tab-panel.active{display:flex;}
+
 /* ── STATUS BAR ── */
 .statusbar{height:env(safe-area-inset-top,0px);background:var(--bg2);flex-shrink:0;}
 
@@ -294,7 +298,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
   </div>
 
   <!-- TAB: HOME -->
-  <div class="screen active" id="tab-home" style="flex:1;overflow:hidden;">
+  <div class="tab-panel active" id="tab-home" style="flex:1;overflow:hidden;">
     <div class="scroll" id="home-scroll">
       <!-- Status card -->
       <div class="status-card" id="status-card">
@@ -375,7 +379,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
   </div>
 
   <!-- TAB: MAPA -->
-  <div class="screen" id="tab-map" style="flex:1;overflow:hidden;position:relative;">
+  <div class="tab-panel" id="tab-map" style="flex:1;overflow:hidden;position:relative;">
     <div id="messenger-map" style="height:100%;z-index:1;"></div>
     <div class="map-overlay">
       <div class="map-status-pill">
@@ -390,7 +394,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
   </div>
 
   <!-- TAB: ALERTAS -->
-  <div class="screen" id="tab-alerts" style="flex:1;overflow:hidden;">
+  <div class="tab-panel" id="tab-alerts" style="flex:1;overflow:hidden;">
     <div class="scroll">
       <div class="sh" style="display:flex;align-items:center;justify-content:space-between">
         <div class="section-title">Mis alertas</div>
@@ -718,8 +722,10 @@ function onGPSUpdate(pos) {
 
 function onGPSError(err) {
   console.warn('GPS error:', err);
-  showToast('Error GPS: '+err.message, 'red');
-  setZoneBanner('no-gps','Error de GPS',err.message);
+  var msg = err.code===1 ? 'Permiso GPS denegado' : err.code===2 ? 'GPS sin señal' : 'Error GPS';
+  setZoneBanner('no-gps', msg, err.code===1 ? 'Activa ubicación en ajustes del navegador' : err.message);
+  // Update stats
+  document.getElementById('stat-accuracy').textContent = '—';
 }
 
 function syncPosition() {
