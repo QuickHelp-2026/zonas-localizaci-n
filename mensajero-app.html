@@ -923,7 +923,23 @@ function switchTab2(tab) {
     document.getElementById('bni-'+t).classList.toggle('active', t===tab);
   });
   if (tab==='home') document.getElementById('main-topbar-title').textContent='Mi Turno';
-  if (tab==='map') { document.getElementById('main-topbar-title').textContent='Mi Zona'; setTimeout(()=>App.map?.invalidateSize(),100); }
+  if (tab==='map') {
+    document.getElementById('main-topbar-title').textContent='Mi Zona';
+    if (!App.map) initMessengerMap();
+    setTimeout(()=>{
+      App.map?.invalidateSize();
+      // Refresh GPS status & marker when switching to map tab
+      if (App.lastPos) {
+        updateMapMarker(App.lastPos.lat, App.lastPos.lng);
+        document.getElementById('map-gps-dot').style.background = 'var(--g)';
+        document.getElementById('map-status-txt').textContent = 'GPS activo';
+        document.getElementById('map-coords-txt').textContent = `${App.lastPos.lat.toFixed(4)}, ${App.lastPos.lng.toFixed(4)}`;
+      } else if (App.onDuty) {
+        document.getElementById('map-status-txt').textContent = 'Esperando señal GPS...';
+        document.getElementById('map-coords-txt').textContent = 'Buscando posición';
+      }
+    }, 150);
+  }
   if (tab==='alerts') document.getElementById('main-topbar-title').textContent='Alertas';
 }
 
@@ -999,13 +1015,25 @@ async function init() {
           App.messenger = localUsers.find(u=>u.id===s.id);
         }
         if (App.messenger) {
-          // Verificar turno activo guardado
+          // Verificar turno activo guardado — primero en localStorage (mismo dispositivo)
           const activeShift = localStorage.getItem('heel_shift_active');
           if (activeShift) {
-            const shiftData = JSON.parse(activeShift);
-            if (shiftData.id===App.messenger.id && (Date.now()-shiftData.ts < 16*60*60*1000)) {
-              App.shiftStart = shiftData.ts;
+            try {
+              const shiftData = JSON.parse(activeShift);
+              if (shiftData.id===App.messenger.id && (Date.now()-shiftData.ts < 16*60*60*1000)) {
+                App.shiftStart = shiftData.ts;
+                App.onDuty = true;
+              }
+            } catch(e) {}
+          }
+          // Si no hay turno en localStorage, recuperar desde Firebase (otro dispositivo)
+          if (!App.onDuty && App.messenger.shift_started && App.messenger.status==='active') {
+            const shiftAge = Date.now() - App.messenger.shift_started;
+            if (shiftAge < 16*60*60*1000) {
+              App.shiftStart = App.messenger.shift_started;
               App.onDuty = true;
+              // Guardar localmente para uso offline
+              localStorage.setItem('heel_shift_active', JSON.stringify({ts:App.shiftStart, id:App.messenger.id}));
             }
           }
           hideLoading();
