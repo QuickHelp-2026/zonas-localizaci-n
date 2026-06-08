@@ -222,8 +222,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
   </div>
 
   <div class="auth-tabs">
-    <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Iniciar sesión</div>
-    <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Registrarme</div>
+    <div class="auth-tab active" id="tab-login">Iniciar sesión</div>
   </div>
 
   <!-- LOGIN FORM -->
@@ -247,8 +246,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'Exo 2',s
     </div>
   </div>
 
-  <!-- REGISTER FORM -->
-  <div class="auth-form" id="form-register" style="display:none">
+  <!-- REGISTER FORM (deshabilitado — solo el admin puede crear cuentas) -->
+  <div class="auth-form" id="form-register" style="display:none!important;visibility:hidden">
     <div class="form-group">
       <label class="form-label">Nombre completo</label>
       <input type="text" class="form-input" id="reg-nombre" placeholder="Carlos López Martínez" autocomplete="name">
@@ -474,6 +473,19 @@ function getInitials(name) { return String(name||'').split(' ').map(w=>w[0]).joi
 // FIREBASE
 // ═══════════════════════════════════════════════════════════════════
 function initFirebase() {
+  // 1. Intentar leer config desde URL (?fc=base64) — permite conectar desde cualquier dispositivo
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fcParam = params.get('fc');
+    if (fcParam) {
+      const cfg = JSON.parse(atob(fcParam));
+      if (cfg.apiKey && cfg.databaseURL) {
+        localStorage.setItem('fb_config', JSON.stringify(cfg));
+      }
+    }
+  } catch(e) { /* URL param inválido, continuar */ }
+
+  // 2. Leer config desde localStorage
   const cfgStr = localStorage.getItem('fb_config');
   if (!cfgStr) { updateSyncChip(false); return; }
   try {
@@ -529,7 +541,7 @@ async function doMessengerLogin() {
       if (match) {
         const [id, m] = match;
         App.messenger = {...m, id};
-        sessionStorage.setItem('messenger_session', JSON.stringify({id, cedula, ts: Date.now()}));
+        localStorage.setItem('messenger_session', JSON.stringify({id, cedula, ts: Date.now()}));
         hideLoading(); enterApp(); return;
       }
     } catch(e) { console.warn('Firebase login:', e); }
@@ -539,7 +551,7 @@ async function doMessengerLogin() {
   const localMatch = localUsers.find(u => u.cedula===cedula && u.pin_hash===pinHash);
   if (localMatch) {
     App.messenger = localMatch;
-    sessionStorage.setItem('messenger_session', JSON.stringify({id:localMatch.id, cedula, ts:Date.now()}));
+    localStorage.setItem('messenger_session', JSON.stringify({id:localMatch.id, cedula, ts:Date.now()}));
     hideLoading();
     enterApp();
     return;
@@ -577,16 +589,17 @@ async function doRegister() {
   localUsers.push(newUser);
   localStorage.setItem('heel_local_users', JSON.stringify(localUsers));
   App.messenger = newUser;
-  sessionStorage.setItem('messenger_session', JSON.stringify({id:newUser.id, cedula, ts:Date.now()}));
+  localStorage.setItem('messenger_session', JSON.stringify({id:newUser.id, cedula, ts:Date.now()}));
   hideLoading();
   enterApp();
 }
 
 function doAppLogout() {
-  if (App.onDuty && !confirm('Tienes un turno activo. ¿Cerrar sesión?')) return;
+  if (App.onDuty && !confirm('Tienes un turno activo. ¿Cerrar sesión de todas formas?')) return;
   if (App.onDuty) endShift();
-  sessionStorage.removeItem('messenger_session');
-  App.messenger = null;
+  localStorage.removeItem('messenger_session');
+  localStorage.removeItem('heel_shift_active');
+  App.messenger = null; App.onDuty = false;
   document.getElementById('screen-auth').classList.add('active');
   document.getElementById('screen-main').classList.remove('active');
   showToast('Sesión cerrada', 'amber');
@@ -613,9 +626,9 @@ function renderHomeInfo() {
   document.getElementById('home-initials').textContent = initials;
   document.getElementById('home-avatar').style.background = (m.color||'#10b981') + '22';
   document.getElementById('home-initials').style.color = m.color||'#10b981';
-  // Zona
-  const zoneInfo = m.zone_id ? `Zona: ${m.zone_id}` : 'Sin zona asignada';
-  document.getElementById('home-zone').textContent = zoneInfo;
+  // Zona — usar zone_name si disponible, sino zone_id
+  const zoneTxt = m.zone_name || m.zone_id || '';
+  document.getElementById('home-zone').textContent = zoneTxt ? `📍 ${zoneTxt}` : 'Sin zona asignada';
   document.getElementById('info-shift').textContent = ({mañana:'Mañana (6:00–14:00)',tarde:'Tarde (14:00–22:00)',completo:'Completo (6:00–22:00)',custom:`${m.shift_start}–${m.shift_end}`}[m.shift]||'—');
 }
 
@@ -733,6 +746,10 @@ function onGPSError(err) {
 
 function syncPosition() {
   if (!App.lastPos || !App.onDuty) return;
+  // Renovar sesión para que no expire mientras el turno está activo
+  if (App.messenger) {
+    localStorage.setItem('messenger_session', JSON.stringify({id:App.messenger.id, cedula:App.messenger.cedula, ts:Date.now()}));
+  }
   const {lat, lng, speed, accuracy, ts} = App.lastPos;
   App.lastSyncTs = Date.now();
   document.getElementById('stat-sync').textContent = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -998,7 +1015,7 @@ async function init() {
   showLoading('Iniciando HEEL Mensajero...');
   initFirebase();
   // Verificar sesión activa
-  const sess = sessionStorage.getItem('messenger_session');
+  const sess = localStorage.getItem('messenger_session');
   if (sess) {
     try {
       const s = JSON.parse(sess);
