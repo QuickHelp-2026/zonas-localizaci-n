@@ -1031,6 +1031,8 @@ function listenMessengersFirebase() {
         last_lat: m.last_lat, last_lng: m.last_lng,
         last_speed: m.last_speed, last_battery: m.last_battery,
         last_seen: m.last_seen, status: m.status || S.messengers[idx].status,
+        shift_started: m.shift_started || S.messengers[idx].shift_started,
+        zone_name: m.zone_name || S.messengers[idx].zone_name,
       });
       if (m.last_lat && m.last_lng) {
         if (!S.posHistory[id]) S.posHistory[id] = [];
@@ -1163,12 +1165,34 @@ function renderDashboardList() {
   const active = S.messengers.filter(m=>m.status==='active');
   if (!active.length) { el.innerHTML='<div style="padding:20px 13px;font-size:12px;color:var(--t2)">Sin mensajeros activos</div>'; return; }
   el.innerHTML = active.map(m => {
-    const avcls = 'ag';
     const zone = S.zones.find(z=>z.ID===m.zone_id);
     const photoHtml = m.photo ? `<img src="${m.photo}" alt="">` : getInitials(m.nombre);
     const batTxt = m.last_battery!=null ? m.last_battery+'%' : '—';
     const spdTxt = m.last_speed!=null ? Math.round(m.last_speed)+' km/h' : '—';
-    return `<div class="mi gs" onclick="focusM('${m.id}')"><div class="mav ${avcls}">${photoHtml}</div><div style="flex:1;min-width:0"><div class="mname">${escHtml(m.nombre)}</div><div class="mmeta">${zone?escHtml(zone.Nombre):'Sin zona'} · ${spdTxt} · 🔋${batTxt}</div></div><div class="stag g">ACTIVO</div></div>`;
+    // Tiempo activo desde inicio de turno
+    let shiftDurTxt = '—';
+    if (m.shift_started) {
+      const diff = Math.floor((Date.now()-m.shift_started)/1000);
+      const h=Math.floor(diff/3600), min=Math.floor((diff%3600)/60);
+      shiftDurTxt = h>0 ? `${h}h ${min}m activo` : `${min}m activo`;
+    }
+    // Última vez visto
+    let lastSeenTxt = 'Sin GPS';
+    if (m.last_seen) {
+      const secAgo = Math.floor((Date.now()-m.last_seen)/1000);
+      if (secAgo < 60) lastSeenTxt = 'Hace '+secAgo+'s';
+      else if (secAgo < 3600) lastSeenTxt = 'Hace '+Math.floor(secAgo/60)+'min';
+      else lastSeenTxt = new Date(m.last_seen).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    }
+    return `<div class="mi gs" onclick="focusM('${m.id}')">
+      <div class="mav ag">${photoHtml}</div>
+      <div style="flex:1;min-width:0">
+        <div class="mname">${escHtml(m.nombre)}</div>
+        <div class="mmeta">${zone?escHtml(zone.Nombre):'Sin zona'} · ${spdTxt} · 🔋${batTxt}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">⏱ ${shiftDurTxt} · 📡 ${lastSeenTxt}</div>
+      </div>
+      <div class="stag g">ACTIVO</div>
+    </div>`;
   }).join('');
 }
 
@@ -1263,16 +1287,25 @@ async function saveMensajero() {
     if (!/^\d{6}$/.test(pinRaw)) { showNotif('geo','Error','El PIN debe ser exactamente 6 dígitos numéricos'); return; }
     pin_hash = await sha256(pinRaw);
   }
+  // Buscar nombre de zona para incluirlo en el registro
+  const zoneObj = S.zones.find(z=>z.ID===zone_id);
+  const zone_name = zoneObj ? zoneObj.Nombre : '';
   if (editId) {
     const idx = S.messengers.findIndex(m=>m.id===editId);
     if (idx>=0) {
-      S.messengers[idx] = {...S.messengers[idx], nombre, cedula, phone, shift, shift_start, shift_end, zone_id, status, color, photo};
+      S.messengers[idx] = {...S.messengers[idx], nombre, cedula, phone, shift, shift_start, shift_end, zone_id, zone_name, status, color, photo};
       if (pin_hash) S.messengers[idx].pin_hash = pin_hash;
+      // Actualizar en Firebase
+      if (S.db) {
+        const fbEntry = {id:S.messengers[idx].id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, zone_name, status, color};
+        if (pin_hash) fbEntry.pin_hash = pin_hash;
+        pushToFirebase('/messengers/'+S.messengers[idx].id, fbEntry);
+      }
       // Actualizar en localStorage compartido
       try {
         const local = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
         const ei = local.findIndex(u=>u.id===S.messengers[idx].id);
-        const entry = {id:S.messengers[idx].id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, status, color};
+        const entry = {id:S.messengers[idx].id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, zone_name, status, color};
         if (pin_hash) entry.pin_hash = pin_hash;
         if (ei>=0) { local[ei]={...local[ei],...entry}; } else { local.push(entry); }
         localStorage.setItem('heel_local_users', JSON.stringify(local));
@@ -1280,14 +1313,14 @@ async function saveMensajero() {
     }
   } else {
     if (!pinRaw) { showNotif('geo','Error','El PIN es requerido para nuevo mensajero'); return; }
-    const newM = {id:'M'+Date.now(), nombre, cedula, phone, color, shift, shift_start, shift_end, zone_id, status, pin_hash, photo, last_lat:null, last_lng:null, last_speed:null, last_battery:null, last_seen:null};
+    const newM = {id:'M'+Date.now(), nombre, cedula, phone, color, shift, shift_start, shift_end, zone_id, zone_name, status, pin_hash, photo, last_lat:null, last_lng:null, last_speed:null, last_battery:null, last_seen:null};
     S.messengers.push(newM);
-    if (S.db) pushToFirebase('/messengers/'+newM.id, {id:newM.id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, status, pin_hash, color});
+    if (S.db) pushToFirebase('/messengers/'+newM.id, {id:newM.id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, zone_name, status, pin_hash, color});
     // Guardar en localStorage compartido para que la app mensajero funcione sin Firebase
     try {
       const local = JSON.parse(localStorage.getItem('heel_local_users')||'[]');
       const existIdx = local.findIndex(u=>u.id===newM.id);
-      const entry = {id:newM.id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, status, pin_hash, color};
+      const entry = {id:newM.id, nombre, cedula, phone, shift, shift_start, shift_end, zone_id, zone_name, status, pin_hash, color};
       if (existIdx>=0) local[existIdx]=entry; else local.push(entry);
       localStorage.setItem('heel_local_users', JSON.stringify(local));
     } catch(e) {}
@@ -1818,7 +1851,21 @@ function handlePhotoUpload(input) {
 // QR & APP LINK
 // ═══════════════════════════════════════════════════════════════════
 function getAppUrl() {
-  try { const u=new URL(window.location.href); const p=u.pathname.split('/'); p[p.length-1]='mensajero-app.html'; u.pathname=p.join('/'); u.search=''; u.hash=''; return u.toString(); } catch(e){ return 'mensajero-app.html'; }
+  try {
+    const u = new URL(window.location.href);
+    const p = u.pathname.split('/');
+    p[p.length-1] = 'mensajero-app.html';
+    u.pathname = p.join('/');
+    u.hash = '';
+    // Embed Firebase config in URL so any device can connect automatically
+    const fbCfg = localStorage.getItem('fb_config');
+    if (fbCfg) {
+      u.searchParams.set('fc', btoa(fbCfg));
+    } else {
+      u.search = '';
+    }
+    return u.toString();
+  } catch(e) { return 'mensajero-app.html'; }
 }
 function showQR() { openModal('qr'); }
 function copyAppLink() { navigator.clipboard.writeText(getAppUrl()).then(()=>showNotif('ok','Enlace copiado','URL de la app mensajero copiada')).catch(()=>showNotif('geo','Error','No se pudo copiar')); }
